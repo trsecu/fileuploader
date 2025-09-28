@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+<meta charset="UTF-8">
+<title>پنل ادمین</title>
+<style>
+body{font-family:system-ui;direction:rtl;padding:20px}
+.container{max-width:800px;margin:auto}
+input,button{padding:8px;margin:6px 0;width:100%}
+</style>
+</head>
+<body>
+<div class="container">
+  <h2>پنل ادمین</h2>
+
+  <button id="adminLogin">ورود ادمین</button>
+  <button id="adminLogout">خروج ادمین</button>
+  <p id="adminStatus"></p>
+
+  <h3>آپلود فایل</h3>
+  <input id="fileInput" type="file"/>
+  <button id="uploadBtn" disabled>آپلود</button>
+  <p id="uploadStatus"></p>
+
+  <h3>مدیریت فایل‌ها</h3>
+  <div id="fileList">بارگذاری فایل‌ها...</div>
+</div>
+
+<script>
+async function adminLogin() {
+  const res = await fetch('/api/admin/login', { method:'POST' });
+  const j = await res.json();
+  document.getElementById('adminStatus').textContent = j.ok ? 'ادمین وارد شد' : 'خطا';
+  document.getElementById('uploadBtn').disabled = !j.ok;
+  loadFiles();
+}
+
+async function adminLogout() {
+  const res = await fetch('/api/admin/logout', { method:'POST' });
+  const j = await res.json();
+  document.getElementById('adminStatus').textContent = j.ok ? 'ادمین خارج شد' : 'خطا';
+  document.getElementById('uploadBtn').disabled = true;
+}
+
+async function uploadFile() {
+  const f = document.getElementById('fileInput').files[0];
+  if(!f){ alert('فایلی انتخاب نشده'); return; }
+  const fd = new FormData(); fd.append('file', f);
+  const res = await fetch('/api/admin/upload', { method:'POST', body: fd });
+  const j = await res.json();
+  document.getElementById('uploadStatus').textContent = JSON.stringify(j);
+  loadFiles();
+}
+
+async function loadFiles() {
+  const res = await fetch('/api/files');
+  const j = await res.json();
+  const el = document.getElementById('fileList');
+  el.innerHTML = '';
+  (j.files || []).forEach(f => {
+    const div = document.createElement('div');
+    div.textContent = f.filename + ' ';
+    const btn = document.createElement('button');
+    btn.textContent = 'حذف';
+    btn.onclick = async () => {
+      await fetch('/api/admin/delete', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ filename: f.filename })
+      });
+      loadFiles();
+    };
+    div.appendChild(btn);
+    el.appendChild(div);
+  });
+}
+
+document.getElementById('adminLogin').addEventListener('click', adminLogin);
+document.getElementById('adminLogout').addEventListener('click', adminLogout);
+document.getElementById('uploadBtn').addEventListener('click', uploadFile);
+loadFiles();
+</script>
+</body>
+</html>

