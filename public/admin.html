@@ -17,6 +17,25 @@ input,button{padding:8px;margin:6px 0;width:100%}
   transition: transform .08s ease, box-shadow .08s ease;
   border: 1px solid rgba(0,0,0,0.06);
 }
+#floating-fun{
+  position:fixed;
+  right:18px;
+  bottom:18px;
+  width:56px;
+  height:56px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:28px;
+  border-radius:50%;
+  background:linear-gradient(180deg,#fff,#f0f0f3);
+  box-shadow:0 8px 20px rgba(0,0,0,0.18);
+  cursor:pointer;
+  user-select:none;
+  transition:transform .12s ease, box-shadow .12s ease;
+  z-index:9999;
+}
+#floating-fun:active{ transform:scale(.94) rotate(-6deg); box-shadow:0 4px 10px rgba(0,0,0,0.14) }
 .external-btn:hover{ transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.12); }
   
 </style>
@@ -31,7 +50,9 @@ input,button{padding:8px;margin:6px 0;width:100%}
  سیستم مخصوص حاک حرفه ایی 
 </a>
 
-
+<div id="floating-fun" role="button" aria-label="اسباب‌بازی فان" tabindex="0">
+  🦆
+</div>
   <button id="adminLogin">ورود ادمین</button>
   <button id="adminLogout">خروج ادمین</button>
   <p id="adminStatus"></p>
@@ -45,6 +66,12 @@ input,button{padding:8px;margin:6px 0;width:100%}
   <div id="fileList">بارگذاری فایل‌ها...</div>
 </div>
 
+<script>
+document.getElementById('floating-fun').addEventListener('click', () => {
+  // پیام فان جدا از لینک؛ از alert ساده یا یک modal دلخواه استفاده کنید
+  alert('اوه! اردکِ د 🦆🎉');
+});
+</script>
 <script>
 async function adminLogin() {
   const res = await fetch('/api/admin/login', { method:'POST' });
